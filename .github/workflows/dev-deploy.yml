@@ -32,14 +32,16 @@ jobs:
             --port 22 \
             --cidr ${{ steps.ip.outputs.ip }}/32
 
-      - name: Copy files to staging
+      - name: Copy contents of site folder
         uses: appleboy/scp-action@v0.1.7
         with:
           host: 100.52.133.235
           username: ec2-user
           key: ${{ secrets.EC2_KEY }}
-          source: "site/"
+          source: "site/*"
           target: "/var/www/staging"
+          strip_components: 1
+          rm: true
 
       - name: Reload nginx
         uses: appleboy/ssh-action@v0.1.7
