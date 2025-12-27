@@ -16,7 +16,7 @@ jobs:
           host: 100.52.133.235
           username: ec2-user
           key: ${{ secrets.EC2_KEY }}
-          source: "site/*"
+          source: "site/"
           target: "/var/www/staging"
 
       - name: Reload nginx
