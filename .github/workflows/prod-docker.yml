@@ -1,0 +1,78 @@
+name: Production Docker Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::YOUR_ACCOUNT_ID:role/Prod_Deployment
+          aws-region: us-east-1
+
+      - name: Get runner public IP
+        id: ip
+        run: echo "ip=$(curl -s https://checkip.amazonaws.com)" >> $GITHUB_OUTPUT
+
+      - name: Temporarily allow GitHub IP
+        run: |
+          aws ec2 authorize-security-group-ingress \
+            --group-id YOUR_SECURITY_GROUP_ID \
+            --protocol tcp \
+            --port 22 \
+            --cidr ${{ steps.ip.outputs.ip }}/32
+
+      - name: Build Docker image
+        run: docker build -t demo-prod .
+
+      - name: Save Docker image
+        run: docker save demo-prod > demo-prod.tar
+
+      - name: Upload Docker image
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: YOUR_EC2_PUBLIC_IP
+          username: ec2-user
+          key: ${{ secrets.EC2_KEY }}
+          source: "demo-prod.tar"
+          target: "/home/ec2-user"
+
+      - name: Run new production container (atomic)
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: YOUR_EC2_PUBLIC_IP
+          username: ec2-user
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            docker load < demo-prod.tar
+            docker stop demo-prod || true
+            docker rm demo-prod || true
+            docker run -d --name demo-prod -p 127.0.0.1:3000:80 demo-prod
+
+      - name: Reload nginx
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: YOUR_EC2_PUBLIC_IP
+          username: ec2-user
+          key: ${{ secrets.EC2_KEY }}
+          script: sudo systemctl reload nginx
+
+      - name: Revoke GitHub IP
+        if: always()
+        run: |
+          aws ec2 revoke-security-group-ingress \
+            --group-id YOUR_SECURITY_GROUP_ID \
+            --protocol tcp \
+            --port 22 \
+            --cidr ${{ steps.ip.outputs.ip }}/32
