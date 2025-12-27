@@ -1,0 +1,29 @@
+name: Staging Deploy
+
+on:
+  push:
+    branches: [ dev ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Upload staging files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: 100.52.133.235
+          username: ec2-user
+          key: ${{ secrets.EC2_KEY }}
+          source: "site/*"
+          target: "/var/www/staging"
+
+      - name: Reload nginx
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: YOUR_EC2_IP
+          username: ec2-user
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            sudo systemctl reload nginx
