@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Play with Me</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1d2671, #c33764);
+            color: white;
+            text-align: center;
+        }
+
+        h1 {
+            margin: 20px 0;
+            font-size: 36px;
+            letter-spacing: 1px;
+        }
+
+        #score {
+            font-size: 22px;
+            margin-bottom: 10px;
+        }
+
+        #gameArea {
+            position: relative;
+            width: 90%;
+            max-width: 600px;
+            height: 400px;
+            margin: 20px auto;
+            background: rgba(0, 0, 0, 0.3);
+            border: 3px solid #fff;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #box {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: yellow;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        #info {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🎮 Play with Shubham 🎮</h1>
+    <div id="score">Score: 0</div>
+    <div id="gameArea">
+        <div id="box"></div>
+    </div>
+    <div id="info">Click the box as fast as you can!</div>
+
+    <script>
+        const box = document.getElementById("box");
+        const gameArea = document.getElementById("gameArea");
+        const scoreDisplay = document.getElementById("score");
+
+        let score = 0;
+        let speed = 1500; // milliseconds
+
+        function moveBox() {
+            const areaWidth = gameArea.clientWidth - box.clientWidth;
+            const areaHeight = gameArea.clientHeight - box.clientHeight;
+
+            const x = Math.random() * areaWidth;
+            const y = Math.random() * areaHeight;
+
+            box.style.left = x + "px";
+            box.style.top = y + "px";
+        }
+
+        box.addEventListener("click", () => {
+            score++;
+            scoreDisplay.textContent = "Score: " + score;
+
+            // Increase difficulty
+            if (speed > 400) {
+                speed -= 100;
+            }
+
+            moveBox();
+        });
+
+        function startGame() {
+            moveBox();
+            setInterval(moveBox, speed);
+        }
+
+        startGame();
+    </script>
+
+</body>
+</html>
