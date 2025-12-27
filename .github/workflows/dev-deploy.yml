@@ -1,0 +1,71 @@
+name: Staging Deploy
+
+on:
+  push:
+    branches: [ dev ]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::197538345592:role/Staging_Deployment
+          aws-region: us-east-1
+
+      - name: Get runner public IP
+        id: ip
+        run: echo "ip=$(curl -s https://checkip.amazonaws.com)" >> $GITHUB_OUTPUT
+
+      - name: Temporarily allow GitHub IP
+        run: |
+          aws ec2 authorize-security-group-ingress \
+            --group-id sg-0303cac3d985cf21e \
+            --protocol tcp \
+            --port 22 \
+            --cidr ${{ steps.ip.outputs.ip }}/32
+
+      - name: Clean staging directory
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: 100.52.133.235
+          username: ec2-user
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            rm -rf /var/www/staging/*
+
+
+      - name: Copy contents of site folder
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: 100.52.133.235
+          username: ec2-user
+          key: ${{ secrets.EC2_KEY }}
+          source: "site/*"
+          target: "/var/www/staging"
+          strip_components: 1
+
+
+      - name: Reload nginx
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: 100.52.133.235
+          username: ec2-user
+          key: ${{ secrets.EC2_KEY }}
+          script: sudo systemctl reload nginx
+
+      - name: Revoke GitHub IP
+        if: always()||cancelled()
+        run: |
+          aws ec2 revoke-security-group-ingress \
+            --group-id sg-0303cac3d985cf21e \
+            --protocol tcp \
+            --port 22 \
+            --cidr ${{ steps.ip.outputs.ip }}/32
